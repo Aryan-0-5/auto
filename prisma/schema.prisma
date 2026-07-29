@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  drafts       Draft[]
+  sentHistory  SentHistory[]
+}
+
+model Template {
+  id                   String   @id @default(cuid())
+  name                 String   @default("default")
+  openingLineHtml      String   @db.Text
+  termsBlockHtml       String   @db.Text
+  closingSignatureHtml String   @db.Text
+  isHtml               Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
+  updatedByUserId      String?
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  DRAFTED
+  SENT
+  DISMISSED
+}
+
+model Enquiry {
+  id              String            @id @default(cuid())
+  gmailThreadId   String            @unique
+  senderEmail     String
+  senderName      String?
+  companyName     String?
+  subject         String
+  rawBody         String            @db.Text
+  status          EnquiryStatus     @default(NEW)
+  generalRemarks  String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  lastRefreshedAt DateTime          @default(now())
+  lineItems       EnquiryLineItem[]
+  drafts          Draft[]
+
+  @@index([status])
+  @@index([senderEmail])
+}
+
+model EnquiryLineItem {
+  id           String   @id @default(cuid())
+  enquiryId    String
+  enquiry      Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  lineOrder    Int
+  rawText      String   @db.Text
+  itemName     String
+  qty          String?
+  price        Decimal? @db.Decimal(12, 2)
+  stockRemarks String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([enquiryId])
+}
+
+enum DraftStatus {
+  PENDING
+  SENT
+  SUPERSEDED
+}
+
+model Draft {
+  id                String      @id @default(cuid())
+  enquiryId         String
+  enquiry           Enquiry     @relation(fields: [enquiryId], references: [id])
+  gmailDraftId      String
+  gmailMessageId    String?
+  toEmail           String
+  subject           String
+  bodyHtml          String      @db.Text
+  bodyText          String      @db.Text
+  isHtml            Boolean
+  status            DraftStatus @default(PENDING)
+  generatedAt       DateTime    @default(now())
+  generatedByUserId String
+  generatedByUser   User        @relation(fields: [generatedByUserId], references: [id])
+
+  @@index([status])
+  @@index([enquiryId])
+}
+
+model SentHistory {
+  id             String            @id @default(cuid())
+  draftId        String?
+  gmailMessageId String
+  gmailThreadId  String
+  senderEmail    String
+  companyName    String?
+  subject        String
+  bodyHtml       String            @db.Text
+  bodyText       String            @db.Text
+  generalRemarks String?           @db.Text
+  sentAt         DateTime          @default(now())
+  sentByUserId   String
+  sentByUser     User              @relation(fields: [sentByUserId], references: [id])
+  items          SentHistoryItem[]
+
+  @@index([senderEmail])
+  @@index([sentAt])
+}
+
+model SentHistoryItem {
+  id            String      @id @default(cuid())
+  sentHistoryId String
+  sentHistory   SentHistory @relation(fields: [sentHistoryId], references: [id], onDelete: Cascade)
+  itemName      String
+  qty           String?
+  price         Decimal?    @db.Decimal(12, 2)
+  stockRemarks  String?     @db.Text
+
+  @@index([itemName])
+}
