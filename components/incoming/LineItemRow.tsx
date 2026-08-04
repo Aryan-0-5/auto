@@ -48,18 +48,18 @@ export function LineItemRow({
   return (
     <div className="rounded-md border border-gray-200 p-3">
       <p className="mb-2 text-xs text-gray-400">{item.rawText}</p>
-      <div className="grid grid-cols-12 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">
         <input
           value={item.itemName}
           onChange={(e) => onChange({ itemName: e.target.value })}
           placeholder="Item"
-          className="col-span-4 rounded border border-gray-300 px-2 py-1 text-sm"
+          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-4"
         />
         <input
           value={item.qty ?? ""}
           onChange={(e) => onChange({ qty: e.target.value })}
           placeholder="Qty"
-          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm"
+          className="col-span-1 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-2"
         />
         <input
           type="number"
@@ -67,13 +67,13 @@ export function LineItemRow({
           value={item.price ?? ""}
           onChange={(e) => onChange({ price: e.target.value === "" ? null : e.target.value })}
           placeholder="Price"
-          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm"
+          className="col-span-1 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-2"
         />
         <input
           value={item.stockRemarks ?? ""}
           onChange={(e) => onChange({ stockRemarks: e.target.value })}
           placeholder="Stock / remarks (e.g. Ex Stock, which make?)"
-          className="col-span-4 rounded border border-gray-300 px-2 py-1 text-sm"
+          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-4"
         />
       </div>
 

@@ -33,18 +33,22 @@ function ToolbarButton({
 }
 
 export function TemplateToolbar({ editor }: { editor: Editor | null }) {
+  // Note: the selector's own `ctx.editor` param is unreliable (comes back null
+  // even when a real editor is active) — read the outer `editor` closure
+  // variable instead, which useEditorState still correctly re-invokes on
+  // every transaction.
   const state = useEditorState({
     editor,
-    selector: (ctx) =>
-      ctx.editor
+    selector: () =>
+      editor
         ? {
-            bold: ctx.editor.isActive("bold"),
-            italic: ctx.editor.isActive("italic"),
-            underline: ctx.editor.isActive("underline"),
-            strike: ctx.editor.isActive("strike"),
-            orderedList: ctx.editor.isActive("orderedList"),
-            bulletList: ctx.editor.isActive("bulletList"),
-            blockquote: ctx.editor.isActive("blockquote"),
+            bold: editor.isActive("bold"),
+            italic: editor.isActive("italic"),
+            underline: editor.isActive("underline"),
+            strike: editor.isActive("strike"),
+            orderedList: editor.isActive("orderedList"),
+            bulletList: editor.isActive("bulletList"),
+            blockquote: editor.isActive("blockquote"),
           }
         : null,
   });

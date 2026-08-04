@@ -1,14 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { TopNav } from "./TopNav";
 import { SideMenu } from "./SideMenu";
+import { MobileNav } from "./MobileNav";
+
+const CHROME_LESS_PATHS = new Set(["/login", "/profiles"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login";
+  const showChrome = !CHROME_LESS_PATHS.has(pathname);
+  const [activeUserName, setActiveUserName] = useState<string | null>(null);
 
-  if (isLoginPage) {
+  useEffect(() => {
+    if (!showChrome) return;
+    let ignore = false;
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!ignore) setActiveUserName(data?.userName ?? null);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [showChrome]);
+
+  if (!showChrome) {
     return <>{children}</>;
   }
 
@@ -19,7 +37,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-semibold text-gray-900">MDC Quotation Board</span>
           <TopNav />
         </div>
-        <SideMenu />
+        <SideMenu activeUserName={activeUserName} />
+        <MobileNav activeUserName={activeUserName} />
       </header>
       <main className="flex flex-1 flex-col">{children}</main>
     </div>

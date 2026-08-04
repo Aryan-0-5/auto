@@ -9,17 +9,20 @@ function requireEnv(name: string): string {
   return value;
 }
 
-async function seedUser(nameEnv: string, emailEnv: string, passwordEnv: string) {
-  const name = nameEnv;
-  const email = requireEnv(emailEnv);
-  const password = requireEnv(passwordEnv);
-  const passwordHash = await bcrypt.hash(password, 12);
+async function seedProfile(name: string) {
+  const existing = await prisma.user.findFirst({ where: { name } });
+  if (existing) return;
+  await prisma.user.create({ data: { name } });
+}
 
-  await prisma.user.upsert({
-    where: { email },
-    update: { name, passwordHash },
-    create: { name, email, passwordHash },
-  });
+// Only sets the PIN on first seed — re-running later must never clobber a PIN
+// someone has since changed via Settings.
+async function seedAppConfig() {
+  const existing = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  if (existing) return;
+  const pin = requireEnv("SHARED_PIN");
+  const pinHash = await bcrypt.hash(pin, 12);
+  await prisma.appConfig.create({ data: { id: "singleton", pinHash } });
 }
 
 const DEFAULT_OPENING_LINE_HTML =
@@ -47,8 +50,9 @@ async function seedDefaultTemplate() {
 }
 
 async function main() {
-  await seedUser("Aryan", "SEED_ARYAN_EMAIL", "SEED_ARYAN_PASSWORD");
-  await seedUser("Sameer", "SEED_SAMEER_EMAIL", "SEED_SAMEER_PASSWORD");
+  await seedProfile("Aryan");
+  await seedProfile("Sameer");
+  await seedAppConfig();
   await seedDefaultTemplate();
 }
 

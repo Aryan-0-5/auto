@@ -1,8 +1,15 @@
 import { z } from "zod";
 
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+export const pinSchema = z.object({
+  pin: z.string().min(1),
+});
+
+export const createProfileSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+});
+
+export const selectProfileSchema = z.object({
+  userId: z.string().min(1),
 });
 
 export type TiptapNodeInput = {

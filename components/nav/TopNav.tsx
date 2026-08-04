@@ -2,19 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const TABS = [
-  { href: "/incoming", label: "Incoming" },
-  { href: "/drafts", label: "Drafts" },
-  { href: "/sent", label: "Sent (Today)" },
-];
+import { NAV_TABS } from "@/lib/nav-items";
 
 export function TopNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1">
-      {TABS.map((tab) => {
+    <nav className="hidden gap-1 sm:flex">
+      {NAV_TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
           <Link

@@ -9,13 +9,21 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  name         String
-  email        String        @unique
-  passwordHash String
-  createdAt    DateTime      @default(now())
-  drafts       Draft[]
-  sentHistory  SentHistory[]
+  id          String        @id @default(cuid())
+  name        String
+  createdAt   DateTime      @default(now())
+  drafts      Draft[]
+  sentHistory SentHistory[]
+}
+
+// Singleton row (fixed id) holding the shared PIN. bcrypt-hashed like a
+// password would be, even though it's shared rather than per-user — a raw PIN
+// sitting in the DB in plaintext would be a needless downgrade in blast radius
+// if the DB ever leaked.
+model AppConfig {
+  id        String   @id @default("singleton")
+  pinHash   String
+  updatedAt DateTime @updatedAt
 }
 
 model Template {

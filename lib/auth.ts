@@ -4,8 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
 export type SessionData = {
-  userId?: string;
-  userName?: string;
+  pinVerified?: boolean;
+  activeUserId?: string;
 };
 
 function requiredEnv(name: string): string {
@@ -26,12 +26,11 @@ export async function getSession(): Promise<IronSession<SessionData>> {
   return getIronSession<SessionData>(await cookies(), sessionOptions);
 }
 
-export async function verifyCredentials(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return null;
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return null;
-  return user;
+/** Checks the shared PIN against the singleton AppConfig row. */
+export async function verifyPin(pin: string): Promise<boolean> {
+  const config = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  if (!config) return false;
+  return bcrypt.compare(pin, config.pinHash);
 }
 
 export class UnauthorizedError extends Error {
@@ -41,11 +40,27 @@ export class UnauthorizedError extends Error {
   }
 }
 
-/** Guard for API route handlers: throws UnauthorizedError if no session, otherwise returns the session's user id/name. */
-export async function requireUser(): Promise<{ userId: string; userName: string }> {
+/** Guard for routes that only need the shared PIN entered (the profile picker
+ * itself, and creating/listing/selecting profiles) — not a specific profile
+ * chosen yet. */
+export async function requirePinVerified(): Promise<void> {
   const session = await getSession();
-  if (!session.userId || !session.userName) {
+  if (!session.pinVerified) {
     throw new UnauthorizedError();
   }
-  return { userId: session.userId, userName: session.userName };
+}
+
+/** Guard for API route handlers that act on behalf of a specific person (draft
+ * generation, sending, edits) — requires both the PIN and an active profile.
+ * Name is looked up fresh from the DB rather than cached in the session cookie. */
+export async function requireActiveUser(): Promise<{ userId: string; userName: string }> {
+  const session = await getSession();
+  if (!session.pinVerified || !session.activeUserId) {
+    throw new UnauthorizedError();
+  }
+  const user = await prisma.user.findUnique({ where: { id: session.activeUserId } });
+  if (!user) {
+    throw new UnauthorizedError();
+  }
+  return { userId: user.id, userName: user.name };
 }
