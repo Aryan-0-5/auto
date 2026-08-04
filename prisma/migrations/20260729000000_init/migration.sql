@@ -1,4 +1,3 @@
-
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
@@ -146,7 +145,20 @@ CREATE INDEX "SentHistory_sentAt_idx" ON "SentHistory"("sentAt");
 CREATE INDEX "SentHistoryItem_itemName_idx" ON "SentHistoryItem"("itemName");
 
 -- AddForeignKey
-ALTER TABLE "EnquiryLineItem" ADD CONSTRAINT "EnquiryLineItem_enquiryId_fkey" FOREIGN KEY ("enqui
+ALTER TABLE "EnquiryLineItem" ADD CONSTRAINT "EnquiryLineItem_enquiryId_fkey" FOREIGN KEY ("enquiryId") REFERENCES "Enquiry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Draft" ADD CONSTRAINT "Draft_enquiryId_fkey" FOREIGN KEY ("enquiryId") REFERENCES "Enquiry"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Draft" ADD CONSTRAINT "Draft_generatedByUserId_fkey" FOREIGN KEY ("generatedByUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SentHistory" ADD CONSTRAINT "SentHistory_sentByUserId_fkey" FOREIGN KEY ("sentByUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SentHistoryItem" ADD CONSTRAINT "SentHistoryItem_sentHistoryId_fkey" FOREIGN KEY ("sentHistoryId") REFERENCES "SentHistory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
 
 -- One PENDING draft per enquiry at a time (partial unique index; not expressible in Prisma schema DSL)
 CREATE UNIQUE INDEX "draft_one_pending_per_enquiry" ON "Draft" ("enquiryId") WHERE "status" = 'PENDING';
