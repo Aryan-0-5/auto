@@ -19,7 +19,14 @@ import { runWithConcurrency } from "@/lib/concurrency";
 // notification becomes a "card" — confirmed against real inbox noise before
 // this was added). PO/"purchase order" deliberately excluded — that's a
 // different pipeline stage downstream of an enquiry, not an enquiry itself.
+//
+// price/pricing/rate/rates are deliberately NOT standalone terms — they
+// matched too much ordinary marketing copy (ITC Hotels, Airtable, "at our
+// best rate" subscription pitches, "Set price, target, and stop loss"
+// trading-app UI text) to be reliable alone. They only count inside one of
+// the specific phrases below.
 const RELEVANCE_KEYWORDS = [
+  // Standalone — specific enough on their own.
   "quote",
   "quotation",
   "RFQ",
@@ -27,16 +34,27 @@ const RELEVANCE_KEYWORDS = [
   "enquire",
   "inquiry",
   "inquire",
-  "price",
-  "pricing",
-  "rate",
-  "rates",
+  // Phrase-only.
+  '"best price"',
+  '"your price"',
+  '"price for"',
+  '"rate for"',
+  '"stock position"',
   '"please quote"',
   '"kindly quote"',
-  '"stock position"',
-  '"best price"',
 ];
 const SEARCH_QUERY = `is:unread (${RELEVANCE_KEYWORDS.join(" OR ")})`;
+
+// Hard exclusion, checked against the actual fetched body — not part of the
+// Gmail query — so it applies regardless of which keyword matched. A
+// marketing email that happens to say "price for a limited time" is still
+// unsubscribe-list mail, not an enquiry.
+const EXCLUSION_PHRASES = ["unsubscribe", "opt out", "opt-out", "manage your preferences"];
+
+function isExcluded(body: string): boolean {
+  const lower = body.toLowerCase();
+  return EXCLUSION_PHRASES.some((phrase) => lower.includes(phrase));
+}
 
 function isUnread(message: Pick<GmailMessage, "labelIds">): boolean {
   return !!message.labelIds?.includes("UNREAD");
@@ -53,6 +71,7 @@ export const POST = withAuth(async () => {
 
   let created = 0;
   let skipped = 0;
+  let excluded = 0;
 
   for (const thread of candidates) {
     const existing = await prisma.enquiry.findUnique({ where: { gmailThreadId: thread.id } });
@@ -77,6 +96,12 @@ export const POST = withAuth(async () => {
     const senderName = fromHeader.replace(/<[^>]+>/, "").replace(/"/g, "").trim() || null;
     const companyName = deriveCompanyName(fromHeader);
     const body = extractPlainTextBody(latest);
+
+    if (isExcluded(body)) {
+      excluded++;
+      continue;
+    }
+
     const lineItems = parseEnquiryLineItems(body);
 
     await prisma.enquiry.create({
@@ -119,5 +144,5 @@ export const POST = withAuth(async () => {
   });
   const archived = reconcileResults.filter((r) => r.ok && r.value).length;
 
-  return NextResponse.json({ created, skipped, archived, scanned: candidates.length });
+  return NextResponse.json({ created, skipped, excluded, archived, scanned: candidates.length });
 });
