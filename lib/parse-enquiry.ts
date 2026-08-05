@@ -122,7 +122,7 @@ export function parseEnquiryLineItems(rawBody: string): ParsedLineItem[] {
   if (unstructured.length > 0) return unstructured;
 
   // Never drop an enquiry: surface it for fully-manual entry rather than
-  // silently disappearing from the Incoming tab.
+  // silently disappearing from the Enquiries tab.
   return [
     {
       rawText: fresh.slice(0, 500),

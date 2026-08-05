@@ -24,7 +24,7 @@ export default function PinEntryPage() {
         setError(data.error ?? "Something went wrong");
         return;
       }
-      router.push("/profiles");
+      router.push("/enquiries");
       router.refresh();
     } finally {
       setSubmitting(false);

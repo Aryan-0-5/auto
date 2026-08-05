@@ -1,5 +1,5 @@
 export const NAV_TABS = [
-  { href: "/incoming", label: "Incoming" },
+  { href: "/enquiries", label: "Enquiries" },
   { href: "/drafts", label: "Drafts" },
   { href: "/sent", label: "Sent (Today)" },
 ];

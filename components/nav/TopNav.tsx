@@ -8,15 +8,15 @@ export function TopNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="hidden gap-1 sm:flex">
+    <nav className="flex w-full border-b border-gray-200 bg-white">
       {NAV_TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              active ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
+            className={`flex-1 border-b-2 px-2 py-2.5 text-center text-sm font-medium ${
+              active ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-800"
             }`}
           >
             {tab.label}

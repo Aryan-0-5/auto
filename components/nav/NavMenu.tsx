@@ -3,22 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV_TABS, NAV_MENU_ITEMS } from "@/lib/nav-items";
+import { NAV_MENU_ITEMS } from "@/lib/nav-items";
 
-export function MobileNav({ activeUserName }: { activeUserName: string | null }) {
+// Same hamburger + drawer on every screen size now — desktop no longer gets a
+// separate always-visible inline menu.
+export function NavMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
   function close() {
     setOpen(false);
-  }
-
-  async function handleSwitchProfile() {
-    close();
-    await fetch("/api/auth/switch-profile", { method: "POST" });
-    router.push("/profiles");
-    router.refresh();
   }
 
   async function handleLogout() {
@@ -29,7 +24,7 @@ export function MobileNav({ activeUserName }: { activeUserName: string | null })
   }
 
   return (
-    <div className="sm:hidden">
+    <div>
       <button
         onClick={() => setOpen(true)}
         aria-label="Open menu"
@@ -41,11 +36,11 @@ export function MobileNav({ activeUserName }: { activeUserName: string | null })
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={close} />
           <div className="relative flex h-full w-72 max-w-[85vw] flex-col bg-white p-4 shadow-lg">
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-900">MDC Quotation Board</span>
+              <span className="text-sm font-semibold text-gray-900">Menu</span>
               <button
                 onClick={close}
                 aria-label="Close menu"
@@ -56,25 +51,6 @@ export function MobileNav({ activeUserName }: { activeUserName: string | null })
                 </svg>
               </button>
             </div>
-
-            {activeUserName && <p className="mb-3 text-sm text-gray-400">{activeUserName}</p>}
-
-            <nav className="flex flex-col gap-1">
-              {NAV_TABS.map((tab) => (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  onClick={close}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === tab.href ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {tab.label}
-                </Link>
-              ))}
-            </nav>
-
-            <div className="my-3 border-t border-gray-200" />
 
             <nav className="flex flex-col gap-1">
               {NAV_MENU_ITEMS.map((item) => (
@@ -93,12 +69,6 @@ export function MobileNav({ activeUserName }: { activeUserName: string | null })
 
             <div className="my-3 border-t border-gray-200" />
 
-            <button
-              onClick={handleSwitchProfile}
-              className="rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Switch profile
-            </button>
             <button onClick={handleLogout} className="rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
               Log out
             </button>

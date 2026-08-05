@@ -5,7 +5,6 @@ import { prisma } from "./db";
 
 export type SessionData = {
   pinVerified?: boolean;
-  activeUserId?: string;
 };
 
 function requiredEnv(name: string): string {
@@ -33,6 +32,17 @@ export async function verifyPin(pin: string): Promise<boolean> {
   return bcrypt.compare(pin, config.pinHash);
 }
 
+/** Overwrites the stored PIN hash — used only by the /admin/reset-pin
+ * break-glass path, gated by PIN_RESET_TOKEN rather than a session. */
+export async function setPin(newPin: string): Promise<void> {
+  const pinHash = await bcrypt.hash(newPin, 12);
+  await prisma.appConfig.upsert({
+    where: { id: "singleton" },
+    update: { pinHash },
+    create: { id: "singleton", pinHash },
+  });
+}
+
 export class UnauthorizedError extends Error {
   constructor() {
     super("Unauthorized");
@@ -40,27 +50,17 @@ export class UnauthorizedError extends Error {
   }
 }
 
-/** Guard for routes that only need the shared PIN entered (the profile picker
- * itself, and creating/listing/selecting profiles) — not a specific profile
- * chosen yet. */
-export async function requirePinVerified(): Promise<void> {
+/** Guard for API route handlers. There's no profile picker anymore — every
+ * action is attributed to the single seeded user (first by createdAt). The
+ * User model itself is untouched so profile selection can come back later. */
+export async function requireActiveUser(): Promise<{ userId: string; userName: string }> {
   const session = await getSession();
   if (!session.pinVerified) {
     throw new UnauthorizedError();
   }
-}
-
-/** Guard for API route handlers that act on behalf of a specific person (draft
- * generation, sending, edits) — requires both the PIN and an active profile.
- * Name is looked up fresh from the DB rather than cached in the session cookie. */
-export async function requireActiveUser(): Promise<{ userId: string; userName: string }> {
-  const session = await getSession();
-  if (!session.pinVerified || !session.activeUserId) {
-    throw new UnauthorizedError();
-  }
-  const user = await prisma.user.findUnique({ where: { id: session.activeUserId } });
+  const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
   if (!user) {
-    throw new UnauthorizedError();
+    throw new Error("No seeded user found — has the app been seeded?");
   }
   return { userId: user.id, userName: user.name };
 }

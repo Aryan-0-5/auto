@@ -9,8 +9,11 @@ import {
 } from "@/lib/composio";
 import { parseEnquiryLineItems, deriveCompanyName } from "@/lib/parse-enquiry";
 
-const QUOTATION_KEYWORDS = ["quote", "quotation", "RFQ", "enquiry", "inquiry", "pricing", '"please quote"'];
-const SEARCH_QUERY = `in:inbox newer_than:30d (${QUOTATION_KEYWORDS.join(" OR ")})`;
+// Strictly unread — not "unread or recent," not keyword-matched, not the
+// whole inbox. Enquiry detection itself isn't fully reliable (see the "See
+// full mail body" check on each card), so keep the Gmail-side filter as
+// narrow and unambiguous as possible.
+const SEARCH_QUERY = "is:unread";
 
 export const POST = withAuth(async () => {
   const { threads } = await listThreads({ query: SEARCH_QUERY, max_results: 30 });

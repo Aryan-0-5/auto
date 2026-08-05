@@ -18,6 +18,7 @@ export type ApiEnquiry = {
   senderName: string | null;
   companyName: string | null;
   subject: string;
+  rawBody: string;
   status: "NEW" | "IN_PROGRESS" | "DRAFTED" | "SENT" | "DISMISSED";
   generalRemarks: string | null;
   createdAt: string;

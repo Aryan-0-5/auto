@@ -8,10 +8,21 @@ import { renderEmailBody } from "@/lib/render-email";
 import { useDebouncedCallback } from "@/lib/hooks";
 import type { ApiEnquiry, ApiLineItem, ApiTemplate } from "@/lib/types";
 
-export function EnquiryCard({ enquiry, template }: { enquiry: ApiEnquiry; template: ApiTemplate }) {
+export function EnquiryCard({
+  enquiry,
+  template,
+  checked,
+  onToggle,
+}: {
+  enquiry: ApiEnquiry;
+  template: ApiTemplate;
+  checked: boolean;
+  onToggle: () => void;
+}) {
   const [lineItems, setLineItems] = useState<ApiLineItem[]>(enquiry.lineItems);
   const [generalRemarks, setGeneralRemarks] = useState(enquiry.generalRemarks ?? "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [showRawBody, setShowRawBody] = useState(false);
 
   const save = useDebouncedCallback(async (items: ApiLineItem[], remarks: string) => {
     setSaveState("saving");
@@ -56,19 +67,41 @@ export function EnquiryCard({ enquiry, template }: { enquiry: ApiEnquiry; templa
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <p className="font-medium text-gray-900">{enquiry.companyName ?? enquiry.senderName ?? enquiry.senderEmail}</p>
-          <p className="text-sm text-gray-500">
-            {enquiry.senderName ? `${enquiry.senderName} · ` : ""}
-            {enquiry.senderEmail}
-          </p>
-          <p className="mt-1 text-sm text-gray-700">{enquiry.subject}</p>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={onToggle}
+            className="mt-1 h-4 w-4"
+            aria-label={`Select enquiry from ${enquiry.companyName ?? enquiry.senderEmail}`}
+          />
+          <div>
+            <p className="font-medium text-gray-900">{enquiry.companyName ?? enquiry.senderName ?? enquiry.senderEmail}</p>
+            <p className="text-sm text-gray-500">
+              {enquiry.senderName ? `${enquiry.senderName} · ` : ""}
+              {enquiry.senderEmail}
+            </p>
+            <p className="mt-1 text-sm text-gray-700">{enquiry.subject}</p>
+          </div>
         </div>
-        <span className="text-xs text-gray-400">
+        <span className="shrink-0 text-xs text-gray-400">
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
         </span>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setShowRawBody((v) => !v)}
+        className="mb-3 text-xs text-blue-600 hover:underline"
+      >
+        {showRawBody ? "Hide full mail body" : "See full mail body"}
+      </button>
+      {showRawBody && (
+        <pre className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-gray-50 p-3 font-sans text-xs text-gray-700">
+          {enquiry.rawBody}
+        </pre>
+      )}
 
       <div className="space-y-2">
         {lineItems.map((item, index) => (

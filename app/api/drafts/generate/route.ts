@@ -6,15 +6,25 @@ import { withAuth } from "@/lib/api-handler";
 import { createEmailDraft, updateDraft } from "@/lib/composio";
 import { renderEmailBody } from "@/lib/render-email";
 import { runWithConcurrency } from "@/lib/concurrency";
+import { generateDraftsSchema } from "@/lib/validation";
 
-export const POST = withAuth(async (user) => {
+export const POST = withAuth(async (user, request: Request) => {
+  const body = await request.json().catch(() => null);
+  const parsed = generateDraftsSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "enquiryIds is required" }, { status: 400 });
+  }
+
   const template = await prisma.template.findFirst({ where: { name: "default" } });
   if (!template) {
     return NextResponse.json({ error: "Default template not found — has the app been seeded?" }, { status: 404 });
   }
 
+  // Select-to-promote: only ever acts on cards the user explicitly checked,
+  // never the whole Enquiries list — still scoped to NEW/IN_PROGRESS as
+  // defense-in-depth against acting on an already-drafted/sent enquiry.
   const enquiries = await prisma.enquiry.findMany({
-    where: { status: { in: ["NEW", "IN_PROGRESS"] } },
+    where: { id: { in: parsed.data.enquiryIds }, status: { in: ["NEW", "IN_PROGRESS"] } },
     include: {
       lineItems: { orderBy: { lineOrder: "asc" } },
       drafts: { where: { status: "PENDING" } },

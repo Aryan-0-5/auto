@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { EnquiryCard } from "@/components/incoming/EnquiryCard";
+import { EnquiryCard } from "@/components/enquiries/EnquiryCard";
+import { useSelection } from "@/lib/hooks";
 import type { ApiEnquiry, ApiTemplate } from "@/lib/types";
 
 async function fetchEnquiries(): Promise<ApiEnquiry[]> {
@@ -16,13 +17,14 @@ async function fetchTemplate(): Promise<ApiTemplate | null> {
   return data.template ?? null;
 }
 
-export default function IncomingPage() {
+export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState<ApiEnquiry[]>([]);
   const [template, setTemplate] = useState<ApiTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { selected, toggle, clear } = useSelection();
 
   useEffect(() => {
     let ignore = false;
@@ -58,10 +60,15 @@ export default function IncomingPage() {
   }
 
   async function handleGenerateDrafts() {
+    if (selected.size === 0) return;
     setGenerating(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/drafts/generate", { method: "POST" });
+      const res = await fetch("/api/drafts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enquiryIds: Array.from(selected) }),
+      });
       const data = await res.json();
       setMessage(
         res.ok
@@ -70,6 +77,7 @@ export default function IncomingPage() {
             }`
           : (data.error ?? "Draft generation failed")
       );
+      clear();
       setEnquiries(await fetchEnquiries());
     } finally {
       setGenerating(false);
@@ -88,7 +96,7 @@ export default function IncomingPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Incoming</h1>
+        <h1 className="text-lg font-semibold text-gray-900">Enquiries</h1>
         <div className="flex gap-2">
           <button
             onClick={handleRefresh}
@@ -99,10 +107,10 @@ export default function IncomingPage() {
           </button>
           <button
             onClick={handleGenerateDrafts}
-            disabled={generating || enquiries.length === 0}
+            disabled={generating || selected.size === 0}
             className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
           >
-            {generating ? "Generating…" : "Generate drafts"}
+            {generating ? "Generating…" : `Generate Drafts${selected.size > 0 ? ` (${selected.size})` : ""}`}
           </button>
         </div>
       </div>
@@ -122,7 +130,13 @@ export default function IncomingPage() {
               <h2 className="mb-2 text-sm font-semibold text-gray-500">{company}</h2>
               <div className="space-y-4">
                 {items.map((enquiry) => (
-                  <EnquiryCard key={enquiry.id} enquiry={enquiry} template={template} />
+                  <EnquiryCard
+                    key={enquiry.id}
+                    enquiry={enquiry}
+                    template={template}
+                    checked={selected.has(enquiry.id)}
+                    onToggle={() => toggle(enquiry.id)}
+                  />
                 ))}
               </div>
             </div>

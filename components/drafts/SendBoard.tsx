@@ -2,21 +2,13 @@
 
 import { useState } from "react";
 import { DraftRow } from "./DraftRow";
+import { useSelection } from "@/lib/hooks";
 import type { ApiDraft } from "@/lib/types";
 
 export function SendBoard({ drafts, onSent }: { drafts: ApiDraft[]; onSent: () => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { selected, toggle, clear } = useSelection();
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   async function handleSendSelected() {
     if (selected.size === 0) return;
@@ -34,7 +26,7 @@ export function SendBoard({ drafts, onSent }: { drafts: ApiDraft[]; onSent: () =
           ? `Sent ${data.sent}${data.failed ? `, ${data.failed} failed` : ""}`
           : (data.error ?? "Send failed")
       );
-      setSelected(new Set());
+      clear();
       onSent();
     } finally {
       setSending(false);
@@ -42,7 +34,7 @@ export function SendBoard({ drafts, onSent }: { drafts: ApiDraft[]; onSent: () =
   }
 
   if (drafts.length === 0) {
-    return <p className="text-sm text-gray-500">No pending drafts. Generate some from the Incoming tab.</p>;
+    return <p className="text-sm text-gray-500">No pending drafts. Generate some from the Enquiries tab.</p>;
   }
 
   return (

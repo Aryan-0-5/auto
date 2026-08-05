@@ -4,12 +4,13 @@ export const pinSchema = z.object({
   pin: z.string().min(1),
 });
 
-export const createProfileSchema = z.object({
-  name: z.string().trim().min(1).max(60),
+export const resetPinSchema = z.object({
+  token: z.string().min(1),
+  newPin: z.string().min(1),
 });
 
-export const selectProfileSchema = z.object({
-  userId: z.string().min(1),
+export const generateDraftsSchema = z.object({
+  enquiryIds: z.array(z.string()).min(1),
 });
 
 export type TiptapNodeInput = {
