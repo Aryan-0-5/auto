@@ -19,8 +19,10 @@ export class ComposioToolError extends Error {
 async function executeTool<T>(slug: string, args: Record<string, unknown>): Promise<T> {
   const apiKey = process.env.COMPOSIO_API_KEY;
   const connectedAccountId = process.env.CONNECTED_ACCOUNT_ID;
+  const entityId = process.env.COMPOSIO_ENTITY_ID;
   if (!apiKey) throw new Error("Missing required env var COMPOSIO_API_KEY");
   if (!connectedAccountId) throw new Error("Missing required env var CONNECTED_ACCOUNT_ID");
+  if (!entityId) throw new Error("Missing required env var COMPOSIO_ENTITY_ID");
 
   const res = await fetch(`${COMPOSIO_BASE_URL}/tools/execute/${slug}`, {
     method: "POST",
@@ -30,6 +32,11 @@ async function executeTool<T>(slug: string, args: Record<string, unknown>): Prom
     },
     body: JSON.stringify({
       connected_account_id: connectedAccountId,
+      // Required on every call — omitting it 400s with
+      // ActionExecute_ConnectedAccountEntityIdRequired. Confirmed live against
+      // the real API on 2026-08-05; not documented anywhere in Composio's
+      // own docs at planning time.
+      entity_id: entityId,
       arguments: args,
     }),
   });
