@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LineItemRow } from "./LineItemRow";
 import { GeneralRemarksField } from "./GeneralRemarksField";
 import { EmailPreviewPane } from "./EmailPreviewPane";
@@ -23,6 +23,17 @@ export function EnquiryCard({
   const [generalRemarks, setGeneralRemarks] = useState(enquiry.generalRemarks ?? "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showRawBody, setShowRawBody] = useState(false);
+
+  // Selection must only ever change via this checkbox's own onChange — never
+  // as a side effect of editing fields. React's controlled-input model only
+  // corrects the DOM when its `checked` prop changes; it won't notice or
+  // undo an external mutation (e.g. a browser autofill/password-manager
+  // extension deciding to toggle a nearby checkbox after nearby fields are
+  // filled in). Re-asserting on every render makes that self-correcting.
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkboxRef.current) checkboxRef.current.checked = checked;
+  });
 
   const save = useDebouncedCallback(async (items: ApiLineItem[], remarks: string) => {
     setSaveState("saving");
@@ -70,9 +81,13 @@ export function EnquiryCard({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <input
+            ref={checkboxRef}
             type="checkbox"
             checked={checked}
             onChange={onToggle}
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
             className="mt-1 h-4 w-4"
             aria-label={`Select enquiry from ${enquiry.companyName ?? enquiry.senderEmail}`}
           />

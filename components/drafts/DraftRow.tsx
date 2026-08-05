@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ApiDraft } from "@/lib/types";
 
 type LiveDraft = ApiDraft & { liveBodyText: string };
@@ -16,6 +16,13 @@ export function DraftRow({
 }) {
   const [live, setLive] = useState<LiveDraft | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Same defensive re-assertion as EnquiryCard's checkbox — see the comment
+  // there for why this is needed, not just belt-and-suspenders.
+  const checkboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (checkboxRef.current) checkboxRef.current.checked = checked;
+  });
 
   useEffect(() => {
     let ignore = false;
@@ -37,9 +44,13 @@ export function DraftRow({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-start gap-3">
         <input
+          ref={checkboxRef}
           type="checkbox"
           checked={checked}
           onChange={onToggle}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           className="mt-1 h-4 w-4"
           aria-label={`Select draft to ${draft.toEmail}`}
         />
