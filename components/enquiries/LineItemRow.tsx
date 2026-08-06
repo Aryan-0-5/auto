@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { renderLineItem } from "@/lib/render-email";
 import type { ApiLineItem } from "@/lib/types";
 
 type PreviouslyQuotedState =
@@ -10,23 +9,21 @@ type PreviouslyQuotedState =
   | { status: "found"; price: number }
   | { status: "not-found" };
 
+const RAW_TEXT_LABEL_MAX = 50;
+
 export function LineItemRow({
   enquiryId,
   item,
-  index,
   onChange,
 }: {
   enquiryId: string;
   item: ApiLineItem;
-  index: number;
   onChange: (patch: Partial<Pick<ApiLineItem, "itemName" | "price" | "stockRemarks">>) => void;
 }) {
   const [previouslyQuoted, setPreviouslyQuoted] = useState<PreviouslyQuotedState>({ status: "idle" });
 
-  const preview = renderLineItem(
-    { itemName: item.itemName, qty: item.qty, price: item.price, stockRemarks: item.stockRemarks },
-    index
-  );
+  const rawTextLabel =
+    item.rawText.length > RAW_TEXT_LABEL_MAX ? `${item.rawText.slice(0, RAW_TEXT_LABEL_MAX)}…` : item.rawText;
 
   async function lookupPreviouslyQuoted() {
     setPreviouslyQuoted({ status: "loading" });
@@ -47,7 +44,9 @@ export function LineItemRow({
 
   return (
     <div className="rounded-md border border-gray-200 p-3">
-      <p className="mb-2 text-xs text-gray-400">{item.rawText}</p>
+      <p className="mb-2 text-xs text-gray-400" title={item.rawText}>
+        {rawTextLabel}
+      </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">
         <input
           value={item.itemName}
@@ -94,8 +93,6 @@ export function LineItemRow({
         )}
         {previouslyQuoted.status === "not-found" && <span className="text-gray-400">No record found</span>}
       </div>
-
-      <p className="mt-2 rounded bg-gray-50 px-2 py-1 text-sm text-gray-700">{preview.text}</p>
     </div>
   );
 }

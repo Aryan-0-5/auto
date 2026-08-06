@@ -3,19 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { LineItemRow } from "./LineItemRow";
 import { GeneralRemarksField } from "./GeneralRemarksField";
-import { EmailPreviewPane } from "./EmailPreviewPane";
-import { renderEmailBody } from "@/lib/render-email";
 import { useDebouncedCallback } from "@/lib/hooks";
-import type { ApiEnquiry, ApiLineItem, ApiTemplate } from "@/lib/types";
+import type { ApiEnquiry, ApiLineItem } from "@/lib/types";
 
 export function EnquiryCard({
   enquiry,
-  template,
   checked,
   onToggle,
 }: {
   enquiry: ApiEnquiry;
-  template: ApiTemplate;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -65,17 +61,6 @@ export function EnquiryCard({
     save(lineItems, value);
   }
 
-  const preview = renderEmailBody({
-    template,
-    lineItems: lineItems.map((i) => ({
-      itemName: i.itemName,
-      qty: i.qty,
-      price: i.price,
-      stockRemarks: i.stockRemarks,
-    })),
-    generalRemarks,
-  });
-
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -119,23 +104,17 @@ export function EnquiryCard({
       )}
 
       <div className="space-y-2">
-        {lineItems.map((item, index) => (
+        {lineItems.map((item) => (
           <LineItemRow
             key={item.id}
             enquiryId={enquiry.id}
             item={item}
-            index={index}
             onChange={(patch) => updateLineItem(item.id, patch)}
           />
         ))}
       </div>
 
       <GeneralRemarksField value={generalRemarks} onChange={updateGeneralRemarks} />
-
-      <div className="mt-4">
-        <p className="mb-1 text-sm font-medium text-gray-700">Full email preview</p>
-        <EmailPreviewPane html={preview.html} />
-      </div>
     </div>
   );
 }

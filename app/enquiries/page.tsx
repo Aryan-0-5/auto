@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { EnquiryCard } from "@/components/enquiries/EnquiryCard";
 import { useSelection } from "@/lib/hooks";
-import type { ApiEnquiry, ApiTemplate } from "@/lib/types";
+import type { ApiEnquiry } from "@/lib/types";
 
 async function fetchEnquiries(): Promise<ApiEnquiry[]> {
   const res = await fetch("/api/enquiries");
@@ -11,15 +11,8 @@ async function fetchEnquiries(): Promise<ApiEnquiry[]> {
   return data.enquiries ?? [];
 }
 
-async function fetchTemplate(): Promise<ApiTemplate | null> {
-  const res = await fetch("/api/templates");
-  const data = await res.json();
-  return data.template ?? null;
-}
-
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState<ApiEnquiry[]>([]);
-  const [template, setTemplate] = useState<ApiTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -29,10 +22,9 @@ export default function EnquiriesPage() {
   useEffect(() => {
     let ignore = false;
     async function load() {
-      const [enq, tmpl] = await Promise.all([fetchEnquiries(), fetchTemplate()]);
+      const enq = await fetchEnquiries();
       if (!ignore) {
         setEnquiries(enq);
-        setTemplate(tmpl);
         setLoading(false);
       }
     }
@@ -119,7 +111,7 @@ export default function EnquiriesPage() {
 
       {message && <p className="mb-4 text-sm text-gray-600">{message}</p>}
 
-      {loading || !template ? (
+      {loading ? (
         <p className="text-sm text-gray-500">Loading…</p>
       ) : enquiries.length === 0 ? (
         <p className="text-sm text-gray-500">
@@ -135,7 +127,6 @@ export default function EnquiriesPage() {
                   <EnquiryCard
                     key={enquiry.id}
                     enquiry={enquiry}
-                    template={template}
                     checked={selected.has(enquiry.id)}
                     onToggle={() => toggle(enquiry.id)}
                   />

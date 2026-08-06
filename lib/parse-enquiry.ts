@@ -76,6 +76,25 @@ function structuredPass(lines: string[]): ParsedLineItem[] {
   return items;
 }
 
+// Fallback for bodies with no numbered/bulleted markers but that still list
+// one item per physical line — e.g. "1112-248 2 pc" on its own line, no "1."
+// prefix. Reuses structuredPass's own extractQty (already correct) rather
+// than a new regex. Only counts a line if it contains an explicit qty+unit —
+// deliberately the strictest QTY_PATTERNS entry only (not the trailing
+// "- NN" one), since without a numbering marker already confirming "this is
+// a list item," a bare trailing dash-number is too easy to false-positive on
+// unrelated text (a phone number, a reference number).
+function linePass(lines: string[]): ParsedLineItem[] {
+  if (lines.length < 2) return [];
+  const items: ParsedLineItem[] = [];
+  for (const line of lines) {
+    if (!QTY_PATTERNS[0].test(line)) continue;
+    const { itemName, qty } = extractQty(line);
+    items.push({ rawText: line, itemName, qty });
+  }
+  return items;
+}
+
 // Fallback for bodies with no list markers at all: scan sentence-like chunks for
 // "<qty><unit> ... of <item>" or "<item> ... <qty><unit>" in either order.
 const UNSTRUCTURED_PATTERN =
@@ -117,6 +136,9 @@ export function parseEnquiryLineItems(rawBody: string): ParsedLineItem[] {
 
   const structured = structuredPass(lines);
   if (structured.length > 0) return structured;
+
+  const lined = linePass(lines);
+  if (lined.length > 0) return lined;
 
   const unstructured = unstructuredPass(fresh);
   if (unstructured.length > 0) return unstructured;
