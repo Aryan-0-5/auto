@@ -19,19 +19,19 @@ export function HistoryFilters({
         value={values.customer}
         onChange={(e) => onChange({ ...values, customer: e.target.value })}
         placeholder="Customer / company"
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
       />
       <input
         type="date"
         value={values.date}
         onChange={(e) => onChange({ ...values, date: e.target.value })}
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
       />
       <input
         value={values.item}
         onChange={(e) => onChange({ ...values, item: e.target.value })}
         placeholder="Item"
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
       />
     </div>
   );

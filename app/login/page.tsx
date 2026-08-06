@@ -50,7 +50,7 @@ export default function PinEntryPage() {
               required
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-lg tracking-widest focus:border-gray-500 focus:outline-none"
+              className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-lg tracking-widest text-gray-900 focus:border-gray-500 focus:outline-none"
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}

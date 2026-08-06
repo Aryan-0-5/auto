@@ -12,12 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* This app is deliberately light-only — every component uses hardcoded light
+ * Tailwind backgrounds (bg-white, bg-gray-50, etc.), never dark: variants.
+ * The leftover create-next-app dark-mode media query below used to swap text
+ * to near-white on a system set to dark mode, while those backgrounds stayed
+ * light — real typed text (which inherits color from body) rendered nearly
+ * invisible on white/light-gray inputs. Fixed by just not having a dark
+ * variant until the app actually supports one. */
 
 body {
   background: var(--background);

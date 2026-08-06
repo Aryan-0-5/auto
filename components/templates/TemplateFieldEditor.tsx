@@ -49,7 +49,7 @@ export function TemplateFieldEditor({
       <TemplateToolbar editor={editor} />
       <EditorContent
         editor={editor}
-        className="min-h-[100px] rounded-b-md border border-gray-300 bg-white p-3 text-sm [&_.ProseMirror]:min-h-[100px] [&_.ProseMirror]:outline-none"
+        className="min-h-[100px] rounded-b-md border border-gray-300 bg-white p-3 text-sm text-gray-900 [&_.ProseMirror]:min-h-[100px] [&_.ProseMirror]:outline-none"
       />
     </div>
   );

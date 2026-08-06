@@ -17,7 +17,7 @@ export function GeneralRemarksField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder='e.g. "Entire order will take at least 6 weeks."'
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
       />
     </div>
   );

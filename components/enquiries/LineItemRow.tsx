@@ -19,7 +19,7 @@ export function LineItemRow({
   enquiryId: string;
   item: ApiLineItem;
   index: number;
-  onChange: (patch: Partial<Pick<ApiLineItem, "itemName" | "qty" | "price" | "stockRemarks">>) => void;
+  onChange: (patch: Partial<Pick<ApiLineItem, "itemName" | "price" | "stockRemarks">>) => void;
 }) {
   const [previouslyQuoted, setPreviouslyQuoted] = useState<PreviouslyQuotedState>({ status: "idle" });
 
@@ -52,28 +52,31 @@ export function LineItemRow({
         <input
           value={item.itemName}
           onChange={(e) => onChange({ itemName: e.target.value })}
-          placeholder="Item"
-          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-4"
+          placeholder="Item specs"
+          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 sm:col-span-4"
         />
-        <input
-          value={item.qty ?? ""}
-          onChange={(e) => onChange({ qty: e.target.value })}
-          placeholder="Qty"
-          className="col-span-1 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-2"
-        />
+        {/* Read-only — whatever the parser extracted from the customer's
+            enquiry, any unit or none at all. Never validated or edited here;
+            it just flows into the rendered line as-is. */}
+        <div
+          className="col-span-1 flex items-center px-2 py-1 text-sm text-gray-600 sm:col-span-2"
+          title="Quantity as extracted from the enquiry — read-only"
+        >
+          {item.qty || <span className="text-gray-400">—</span>}
+        </div>
         <input
           type="number"
           step="0.01"
           value={item.price ?? ""}
           onChange={(e) => onChange({ price: e.target.value === "" ? null : e.target.value })}
           placeholder="Price"
-          className="col-span-1 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-2"
+          className="col-span-1 rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 sm:col-span-2"
         />
         <input
           value={item.stockRemarks ?? ""}
           onChange={(e) => onChange({ stockRemarks: e.target.value })}
           placeholder="Stock / remarks (e.g. Ex Stock, which make?)"
-          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm sm:col-span-4"
+          className="col-span-2 rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 sm:col-span-4"
         />
       </div>
 
