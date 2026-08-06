@@ -44,7 +44,7 @@ export default function EnquiriesPage() {
         res.ok
           ? `Pulled ${data.created} new enquir${data.created === 1 ? "y" : "ies"} (${data.skipped} already known${
               data.excluded ? `, ${data.excluded} excluded (unsubscribe/marketing language)` : ""
-            }${data.archived ? `, ${data.archived} archived (no longer unread)` : ""})`
+            })`
           : (data.error ?? "Refresh failed")
       );
       setEnquiries(await fetchEnquiries());

@@ -56,8 +56,16 @@ function isExcluded(body: string): boolean {
   return EXCLUSION_PHRASES.some((phrase) => lower.includes(phrase));
 }
 
-function isUnread(message: Pick<GmailMessage, "labelIds">): boolean {
+function isThreadUnread(message: Pick<GmailMessage, "labelIds">): boolean {
   return !!message.labelIds?.includes("UNREAD");
+}
+
+// A thread counts as "replied" once any message in it carries Gmail's own
+// SENT label — i.e. we (not the customer) sent something into this thread.
+// Informational only — see the board-fetch comment below for why this must
+// never gate visibility.
+function isThreadReplied(messages: GmailMessage[]): boolean {
+  return messages.some((m) => m.labelIds?.includes("SENT"));
 }
 
 function latestMessage(messages: GmailMessage[]): GmailMessage | null {
@@ -78,12 +86,15 @@ export const POST = withAuth(async () => {
     if (existing) {
       // Never overwrite an enquiry staff may already be editing — refresh only
       // pulls in genuinely new threads (see build plan's staging-state design).
+      // Its read/replied badges still get refreshed below, alongside every
+      // other currently-active enquiry.
       skipped++;
       continue;
     }
 
     const detail = await fetchMessageByThreadId({ thread_id: thread.id }).catch(() => null);
-    const latest = latestMessage(detail?.messages ?? []);
+    const messages = detail?.messages ?? [];
+    const latest = latestMessage(messages);
     if (!latest) {
       skipped++;
       continue;
@@ -112,6 +123,8 @@ export const POST = withAuth(async () => {
         companyName,
         subject,
         rawBody: body,
+        isUnread: isThreadUnread(latest),
+        isReplied: isThreadReplied(messages),
         lineItems: {
           create: lineItems.map((item, index) => ({
             lineOrder: index,
@@ -125,24 +138,32 @@ export const POST = withAuth(async () => {
     created++;
   }
 
-  // Reconcile: refresh shouldn't only ever add. Anything still sitting on the
-  // board (NEW/IN_PROGRESS) whose Gmail thread has since been read comes off
-  // — checked directly against live Gmail state, not just "did it reappear
-  // in this search," so a still-unread thread that no longer matches the
-  // keyword list (edge case) isn't dropped for the wrong reason.
+  // Keep read/replied badges current for everything already on the board —
+  // informational only, rendered on the card and nothing else. This never
+  // touches status. An enquiry's presence on the board is controlled solely
+  // by an explicit in-app action (draft generated, quote sent, manually
+  // dismissed) — never by Gmail read/reply activity. A prior version of this
+  // route auto-dismissed an enquiry once its thread was "no longer unread,"
+  // which was wrong: real, unhandled enquiries were disappearing from the
+  // board just because someone had opened the email in Gmail. Don't
+  // reintroduce that — see docs/composio-integration.md and the board's own
+  // GET query (app/api/enquiries/route.ts), which deliberately has no
+  // read-state condition either.
   const onBoard = await prisma.enquiry.findMany({
     where: { status: { in: ["NEW", "IN_PROGRESS"] } },
     select: { id: true, gmailThreadId: true },
   });
 
-  const reconcileResults = await runWithConcurrency(onBoard, 10, async (enquiry) => {
+  await runWithConcurrency(onBoard, 10, async (enquiry) => {
     const detail = await fetchMessageByThreadId({ thread_id: enquiry.gmailThreadId });
-    const latest = latestMessage(detail.messages ?? []);
-    if (!latest || isUnread(latest)) return false;
-    await prisma.enquiry.update({ where: { id: enquiry.id }, data: { status: "DISMISSED" } });
-    return true;
+    const messages = detail.messages ?? [];
+    const latest = latestMessage(messages);
+    if (!latest) return;
+    await prisma.enquiry.update({
+      where: { id: enquiry.id },
+      data: { isUnread: isThreadUnread(latest), isReplied: isThreadReplied(messages) },
+    });
   });
-  const archived = reconcileResults.filter((r) => r.ok && r.value).length;
 
-  return NextResponse.json({ created, skipped, excluded, archived, scanned: candidates.length });
+  return NextResponse.json({ created, skipped, excluded, scanned: candidates.length });
 });

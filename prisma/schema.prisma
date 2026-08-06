@@ -55,6 +55,10 @@ model Enquiry {
   rawBody         String            @db.Text
   status          EnquiryStatus     @default(NEW)
   generalRemarks  String?           @db.Text
+  // Display-only badges, refreshed each sync run — never used to gate board
+  // visibility. See app/api/enquiries/refresh/route.ts.
+  isUnread        Boolean           @default(true)
+  isReplied       Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   lastRefreshedAt DateTime          @default(now())

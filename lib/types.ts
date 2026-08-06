@@ -22,6 +22,10 @@ export type ApiEnquiry = {
   status: "NEW" | "IN_PROGRESS" | "DRAFTED" | "SENT" | "DISMISSED";
   generalRemarks: string | null;
   createdAt: string;
+  // Display-only badges — never a condition for whether an enquiry appears
+  // in the list. See app/api/enquiries/refresh/route.ts.
+  isUnread: boolean;
+  isReplied: boolean;
   lineItems: ApiLineItem[];
 };
 

@@ -102,6 +102,22 @@ export function EnquiryCard({
               {enquiry.senderEmail}
             </p>
             <p className="mt-1 text-sm text-gray-700">{enquiry.subject}</p>
+            <div className="mt-1.5 flex gap-1.5">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  enquiry.isUnread ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {enquiry.isUnread ? "Unread" : "Read"}
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  enquiry.isReplied ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {enquiry.isReplied ? "Replied" : "Not replied"}
+              </span>
+            </div>
           </div>
         </div>
         <span className="shrink-0 text-xs text-gray-400">
