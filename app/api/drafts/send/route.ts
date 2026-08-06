@@ -3,7 +3,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withAuth } from "@/lib/api-handler";
-import { sendDraft } from "@/lib/composio";
+import { sendDraft, describeError } from "@/lib/composio";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { sendDraftsSchema } from "@/lib/validation";
 
@@ -51,6 +51,16 @@ export const POST = withAuth(async (user, request: Request) => {
   });
 
   const sentCount = results.filter((r) => r.ok).length;
-  const failed = results.length - sentCount;
-  return NextResponse.json({ sent: sentCount, failed });
+  // Same gap as generate/route.ts had — see comment there. A failed send is
+  // the worst place for this to be silent (staff believes it went out).
+  const failures = results
+    .map((r, i) => ({ r, draft: drafts[i] }))
+    .filter((x): x is { r: { ok: false; error: unknown }; draft: (typeof drafts)[number] } => !x.r.ok)
+    .map(({ r, draft }) => {
+      const detail = describeError(r.error);
+      console.error(`Send failed for draft ${draft.id} (to ${draft.toEmail}):`, detail);
+      return { draftId: draft.id, toEmail: draft.toEmail, ...detail };
+    });
+
+  return NextResponse.json({ sent: sentCount, failed: failures.length, failures });
 });

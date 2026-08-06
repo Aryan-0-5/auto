@@ -17,7 +17,7 @@ export default function EnquiriesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const { selected, toggle, clear } = useSelection();
+  const { selected, toggle, setChecked, clear } = useSelection();
 
   useEffect(() => {
     let ignore = false;
@@ -67,10 +67,15 @@ export default function EnquiriesPage() {
       setMessage(
         res.ok
           ? `Generated ${data.generated} draft${data.generated === 1 ? "" : "s"}${
-              data.failed ? `, ${data.failed} failed` : ""
+              data.failed
+                ? `, ${data.failed} failed (${data.failures?.[0]?.message ?? "unknown error"}${
+                    data.failed > 1 ? `, +${data.failed - 1} more — see console` : ""
+                  })`
+                : ""
             }`
           : (data.error ?? "Draft generation failed")
       );
+      if (data.failures?.length) console.error("Draft generation failures:", data.failures);
       clear();
       setEnquiries(await fetchEnquiries());
     } finally {
@@ -129,6 +134,7 @@ export default function EnquiriesPage() {
                     enquiry={enquiry}
                     checked={selected.has(enquiry.id)}
                     onToggle={() => toggle(enquiry.id)}
+                    setChecked={setChecked}
                   />
                 ))}
               </div>

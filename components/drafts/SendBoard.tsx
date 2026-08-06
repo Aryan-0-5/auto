@@ -23,9 +23,16 @@ export function SendBoard({ drafts, onSent }: { drafts: ApiDraft[]; onSent: () =
       const data = await res.json();
       setMessage(
         res.ok
-          ? `Sent ${data.sent}${data.failed ? `, ${data.failed} failed` : ""}`
+          ? `Sent ${data.sent}${
+              data.failed
+                ? `, ${data.failed} failed (${data.failures?.[0]?.message ?? "unknown error"}${
+                    data.failed > 1 ? `, +${data.failed - 1} more — see console` : ""
+                  })`
+                : ""
+            }`
           : (data.error ?? "Send failed")
       );
+      if (data.failures?.length) console.error("Send failures:", data.failures);
       clear();
       onSent();
     } finally {

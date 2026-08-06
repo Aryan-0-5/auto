@@ -16,6 +16,18 @@ export class ComposioToolError extends Error {
   }
 }
 
+/** Shared shape for reporting a single failed item out of a batch (draft
+ * generation, sending) — both to the client and to server logs, so a batch
+ * failure is never a silent count with no trail. */
+export type ErrorDetail = { slug: string | null; message: string; raw: unknown };
+
+export function describeError(err: unknown): ErrorDetail {
+  if (err instanceof ComposioToolError) {
+    return { slug: err.slug, message: err.message, raw: err.raw };
+  }
+  return { slug: null, message: err instanceof Error ? err.message : String(err), raw: null };
+}
+
 async function executeTool<T>(slug: string, args: Record<string, unknown>): Promise<T> {
   const apiKey = process.env.COMPOSIO_API_KEY;
   const connectedAccountId = process.env.CONNECTED_ACCOUNT_ID;
@@ -132,7 +144,14 @@ export function fetchEmails(args: {
   );
 }
 
-export function createEmailDraft(args: {
+// GMAIL_CREATE_EMAIL_DRAFT's actual payload comes back nested one level
+// deeper than every other Gmail tool — {response_data: {id, message}} instead
+// of {id, message} directly. Confirmed live 2026-08-06: reading `.id` off the
+// unwrapped response silently returns undefined (no type error, since the
+// generic executeTool<T> just casts), which is exactly how a `gmailDraftId`
+// missing DB write failure happened with zero indication why. Unwrapped here
+// so every caller gets the same flat GmailDraft shape as the other tools.
+export async function createEmailDraft(args: {
   recipient_email?: string;
   extra_recipients?: string[];
   cc?: string[];
@@ -142,8 +161,9 @@ export function createEmailDraft(args: {
   is_html?: boolean;
   thread_id?: string;
   user_id?: string;
-}) {
-  return executeTool<GmailDraft>("GMAIL_CREATE_EMAIL_DRAFT", args);
+}): Promise<GmailDraft> {
+  const result = await executeTool<{ response_data: GmailDraft }>("GMAIL_CREATE_EMAIL_DRAFT", args);
+  return result.response_data;
 }
 
 export function listDrafts(args: {
@@ -158,6 +178,14 @@ export function listDrafts(args: {
   );
 }
 
+// BROKEN as of 2026-08-06: consistently 404s "Tool_ToolNotFound" via the
+// direct /tools/execute/GMAIL_GET_DRAFT endpoint, despite GMAIL_GET_DRAFT
+// being a valid, currently-registered tool slug per Composio's own search/
+// schema API (confirmed — this isn't a stale/renamed slug on our end).
+// Re-verify against the live API before using; until then, callers needing a
+// draft's current content should use fetchMessageByMessageId against the
+// draft's stored gmailMessageId instead (same underlying message, and that
+// tool works). See docs/composio-integration.md.
 export function getDraft(args: {
   draft_id: string;
   user_id?: string;
@@ -166,8 +194,16 @@ export function getDraft(args: {
   return executeTool<GmailDraft>("GMAIL_GET_DRAFT", args);
 }
 
-// Replace-style: omitted fields can clear recipients/body, so callers must always
-// resend the full intended recipients/subject/body, never a partial patch.
+// BROKEN as of 2026-08-06: same "Tool_ToolNotFound" 404 as GMAIL_GET_DRAFT
+// above, also confirmed live, also a valid registered slug per Composio's
+// schema API. Re-verify before using. Until then, "regenerate a draft"
+// callers should create a new draft and delete the old one (in that order —
+// create first, so a failure never leaves zero drafts) instead of updating
+// in place. See docs/composio-integration.md.
+//
+// Replace-style if it does start working again: omitted fields can clear
+// recipients/body, so callers must always resend the full intended
+// recipients/subject/body, never a partial patch.
 export function updateDraft(args: {
   draft_id: string;
   recipient_email?: string;

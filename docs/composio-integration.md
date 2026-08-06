@@ -56,6 +56,62 @@ scope, the only fix is generating a new key with the right scope and
 replacing it everywhere it's used (env vars, deployment config). There is no
 in-place upgrade.
 
+## Draft tools: inconsistent response shapes and two broken slugs
+
+Found 2026-08-06 while diagnosing "Generate Drafts" silently failing with
+zero server-side trail (see the logging-gap section below — that gap is
+exactly why this took a live reproduction to find instead of a log line).
+
+- **`GMAIL_CREATE_EMAIL_DRAFT`'s payload is wrapped one level deeper than
+  every other Gmail tool.** Where `GMAIL_LIST_DRAFTS` returns `{id, message}`
+  directly, `GMAIL_CREATE_EMAIL_DRAFT` returns `{response_data: {id,
+  message}}`. Reading `.id` off the unwrapped result doesn't error — the
+  generic `executeTool<T>` just casts — it silently returns `undefined`,
+  which then fails downstream with something unrelated-looking like
+  `Argument gmailDraftId is missing.` on the Prisma write. `lib/composio.ts`'s
+  `createEmailDraft()` now unwraps this internally so every caller gets the
+  same flat shape as the other tools; don't assume any *other* tool's
+  response is flat without checking, given this precedent.
+- **`GMAIL_GET_DRAFT` and `GMAIL_UPDATE_DRAFT` both 404 with
+  `Tool_ToolNotFound`** via the direct `/tools/execute/{slug}` endpoint —
+  confirmed live, repeatedly, not transient. This is *not* a stale/wrong slug
+  on our end: both are valid, currently-registered tool slugs with full
+  schemas per Composio's own `COMPOSIO_SEARCH_TOOLS`/
+  `COMPOSIO_GET_TOOL_SCHEMAS` meta-tools. Whatever's broken is specific to
+  routing these two particular slugs through the direct execute endpoint —
+  every other Gmail tool used in this app (`LIST_DRAFTS`,
+  `CREATE_EMAIL_DRAFT`, `DELETE_DRAFT`, `SEND_DRAFT`, `FETCH_*`) works fine
+  through the same endpoint pattern.
+  - Worked around, not fixed: "regenerate a draft" now creates a replacement
+    and deletes the old one (create first, so a failed delete never leaves
+    zero drafts) instead of calling `GMAIL_UPDATE_DRAFT`. Re-hydrating a
+    draft's live content now calls `GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID`
+    against the draft's stored `gmailMessageId` instead of
+    `GMAIL_GET_DRAFT` — same underlying message, and that tool works.
+  - Re-verify both directly before ever calling them again — Composio may
+    fix this on their end without any change needed here.
+
+## Silent-failure logging gap: mapError() vs. batch routes
+
+Two *different* gaps, both now fixed, both worth knowing apart:
+
+- **`lib/api-handler.ts`'s `mapError()`** only called `console.error()` for
+  unexpected (500) errors, never for `ComposioToolError` (502) — so any route
+  where a Composio error propagates to the top-level handler had zero
+  server-side trail, only the response the client saw. Fixed by adding the
+  log line to that branch too.
+- **Separately**, `/api/drafts/generate` and `/api/drafts/send` run a batch
+  via `runWithConcurrency`, which deliberately catches each item's error so
+  one failure doesn't fail the whole batch — but both routes then discarded
+  that caught error entirely, returning only `{generated, failed}` /
+  `{sent, failed}` counts. `mapError()`'s fix doesn't reach this case at all,
+  since these routes catch internally and still return 200. This was the
+  actual reason "0 drafts, 2 failed" had nothing in Vercel logs and nothing
+  in the response body beyond a count — both routes now log each failure
+  server-side and return a `failures` array (`{slug, message, raw}` per
+  item) to the client. `lib/composio.ts`'s `describeError()` is the shared
+  helper for both.
+
 ## Debugging notes for next time
 
 - **Vercel scopes env vars separately per Production/Preview/Development.**

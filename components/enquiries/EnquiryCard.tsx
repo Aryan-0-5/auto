@@ -6,30 +6,49 @@ import { GeneralRemarksField } from "./GeneralRemarksField";
 import { useDebouncedCallback } from "@/lib/hooks";
 import type { ApiEnquiry, ApiLineItem } from "@/lib/types";
 
+function hasValue(v: string | null | undefined): boolean {
+  return v !== null && v !== undefined && v.trim() !== "";
+}
+
 export function EnquiryCard({
   enquiry,
   checked,
   onToggle,
+  setChecked,
 }: {
   enquiry: ApiEnquiry;
   checked: boolean;
   onToggle: () => void;
+  setChecked: (id: string, value: boolean) => void;
 }) {
   const [lineItems, setLineItems] = useState<ApiLineItem[]>(enquiry.lineItems);
   const [generalRemarks, setGeneralRemarks] = useState(enquiry.generalRemarks ?? "");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showRawBody, setShowRawBody] = useState(false);
 
-  // Selection must only ever change via this checkbox's own onChange — never
-  // as a side effect of editing fields. React's controlled-input model only
-  // corrects the DOM when its `checked` prop changes; it won't notice or
-  // undo an external mutation (e.g. a browser autofill/password-manager
-  // extension deciding to toggle a nearby checkbox after nearby fields are
-  // filled in). Re-asserting on every render makes that self-correcting.
+  // Selection must only ever change via this checkbox's own onChange, or the
+  // auto-select rule below — never as any other side effect of editing
+  // fields. React's controlled-input model only corrects the DOM when its
+  // `checked` prop changes; it won't notice or undo an external mutation
+  // (e.g. a browser autofill/password-manager extension deciding to toggle a
+  // nearby checkbox after nearby fields are filled in). Re-asserting on
+  // every render makes that self-correcting.
   const checkboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (checkboxRef.current) checkboxRef.current.checked = checked;
   });
+
+  // Auto-select: a card ticks itself once every item on it is "complete" —
+  // price or stock/remarks filled in, not necessarily both — and un-ticks if
+  // an edit drops it back below that bar. Reactive to the live field values,
+  // not a one-time trigger: this re-derives on every lineItems change, and
+  // setChecked only touches the Set when the value actually needs to change,
+  // so a manual click in between two edits that don't cross the complete/
+  // incomplete boundary is never overwritten.
+  const isComplete = lineItems.length > 0 && lineItems.every((item) => hasValue(item.price) || hasValue(item.stockRemarks));
+  useEffect(() => {
+    setChecked(enquiry.id, isComplete);
+  }, [isComplete, enquiry.id, setChecked]);
 
   const save = useDebouncedCallback(async (items: ApiLineItem[], remarks: string) => {
     setSaveState("saving");

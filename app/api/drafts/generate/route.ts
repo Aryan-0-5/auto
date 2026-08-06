@@ -3,10 +3,17 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withAuth } from "@/lib/api-handler";
-import { createEmailDraft, updateDraft } from "@/lib/composio";
+import { createEmailDraft, deleteDraft, describeError } from "@/lib/composio";
 import { renderEmailBody } from "@/lib/render-email";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { generateDraftsSchema } from "@/lib/validation";
+
+// Composio's GMAIL_CREATE_EMAIL_DRAFT rejects a request with no subject
+// outright ("Following fields are missing: {'subject'}") — Gmail doesn't
+// infer it from the thread the way a human reply would.
+function replySubject(subject: string): string {
+  return /^re:/i.test(subject.trim()) ? subject : `Re: ${subject}`;
+}
 
 export const POST = withAuth(async (user, request: Request) => {
   const body = await request.json().catch(() => null);
@@ -50,19 +57,33 @@ export const POST = withAuth(async (user, request: Request) => {
     const body = template.isHtml ? rendered.html : rendered.text;
 
     const existingDraft = enquiry.drafts[0];
+    const subject = replySubject(enquiry.subject);
 
     if (existingDraft) {
-      // Regenerate in place — same Gmail draft id, no stale duplicate left behind.
-      await updateDraft({
-        draft_id: existingDraft.gmailDraftId,
+      // GMAIL_UPDATE_DRAFT is currently broken on Composio's side (see
+      // lib/composio.ts) — create the replacement first, only delete the old
+      // one after that succeeds, so a failure here never leaves an enquiry
+      // with zero drafts. Ends up with a new gmailDraftId each regenerate
+      // instead of true in-place update, but still exactly one live draft.
+      const created = await createEmailDraft({
         recipient_email: enquiry.senderEmail,
         thread_id: enquiry.gmailThreadId,
+        subject,
         body,
         is_html: template.isHtml,
+      });
+      await deleteDraft({ draft_id: existingDraft.gmailDraftId }).catch((err) => {
+        console.error(
+          `Regenerated draft for enquiry ${enquiry.id}, but failed to delete the superseded draft ${existingDraft.gmailDraftId} — left orphaned in Gmail:`,
+          err
+        );
       });
       await prisma.draft.update({
         where: { id: existingDraft.id },
         data: {
+          gmailDraftId: created.id,
+          gmailMessageId: created.message?.id,
+          subject,
           bodyHtml: rendered.html,
           bodyText: rendered.text,
           isHtml: template.isHtml,
@@ -74,6 +95,7 @@ export const POST = withAuth(async (user, request: Request) => {
       const created = await createEmailDraft({
         recipient_email: enquiry.senderEmail,
         thread_id: enquiry.gmailThreadId,
+        subject,
         body,
         is_html: template.isHtml,
       });
@@ -83,7 +105,7 @@ export const POST = withAuth(async (user, request: Request) => {
           gmailDraftId: created.id,
           gmailMessageId: created.message?.id,
           toEmail: enquiry.senderEmail,
-          subject: enquiry.subject,
+          subject,
           bodyHtml: rendered.html,
           bodyText: rendered.text,
           isHtml: template.isHtml,
@@ -96,6 +118,22 @@ export const POST = withAuth(async (user, request: Request) => {
   });
 
   const generated = results.filter((r) => r.ok).length;
-  const failed = results.length - generated;
-  return NextResponse.json({ generated, failed });
+  // runWithConcurrency swallows per-item errors so one bad Composio call
+  // doesn't fail the whole batch — but that means this is the only place
+  // that error detail exists at all. Previously this route discarded it
+  // entirely (just counted failures), leaving no server-side trail and
+  // nothing but a bare count on the client. Log + surface it here instead.
+  const failures = results
+    .map((r, i) => ({ r, enquiry: enquiries[i] }))
+    .filter((x): x is { r: { ok: false; error: unknown }; enquiry: (typeof enquiries)[number] } => !x.r.ok)
+    .map(({ r, enquiry }) => {
+      const detail = describeError(r.error);
+      console.error(
+        `Draft generation failed for enquiry ${enquiry.id} (${enquiry.companyName ?? enquiry.senderEmail}):`,
+        detail
+      );
+      return { enquiryId: enquiry.id, companyName: enquiry.companyName, senderEmail: enquiry.senderEmail, ...detail };
+    });
+
+  return NextResponse.json({ generated, failed: failures.length, failures });
 });

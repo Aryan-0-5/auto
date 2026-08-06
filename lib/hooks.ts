@@ -17,9 +17,24 @@ export function useSelection() {
     });
   }, []);
 
+  // Explicit set (not toggle) — for auto-select driven by a condition (e.g.
+  // "every item on this card is priced"), not a user click. Idempotent: a
+  // repeat call with the value it's already at is a no-op, so a component
+  // can safely call this every render without fighting a manual toggle that
+  // happened in between.
+  const setChecked = useCallback((id: string, value: boolean) => {
+    setSelected((prev) => {
+      if (prev.has(id) === value) return prev;
+      const next = new Set(prev);
+      if (value) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
   const clear = useCallback(() => setSelected(new Set()), []);
 
-  return { selected, toggle, clear };
+  return { selected, toggle, setChecked, clear };
 }
 
 /** Returns a stable function that calls `callback` only after `delayMs` of no

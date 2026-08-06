@@ -9,6 +9,10 @@ function mapError(err: unknown): Response {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (err instanceof ComposioToolError) {
+    // Previously silent — a real failure here left zero server-side trail,
+    // only the 502 the client saw. Composio errors are exactly the ones
+    // worth a log line, since they're external and not caught by TypeScript.
+    console.error(`Composio tool ${err.slug} failed:`, err.raw);
     return NextResponse.json(
       { error: `Gmail action failed (${err.slug})`, details: err.raw },
       { status: 502 }
